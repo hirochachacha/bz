@@ -1,5 +1,5 @@
 ---
-name: bugzilla
+name: bz
 description: >-
   Search, read and file bugs in a Bugzilla (bugzilla.samba.org,
   bugzilla.redhat.com, bugzilla.kernel.org and others) with the bz CLI:

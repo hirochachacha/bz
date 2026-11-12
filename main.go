@@ -67,7 +67,7 @@ var groups = []group{
 	}, nil},
 	{"skill", "Print or install the skill for agents", []command{
 		{"show", "", "Print the skill", skillShow},
-		{"install", "", "Install the skill into ./.agents/skills/bugzilla", skillInstall},
+		{"install", "", "Install the skill into ./.agents/skills/bz", skillInstall},
 	}, nil},
 	{"api", "Make a request of the REST API", nil, api},
 }

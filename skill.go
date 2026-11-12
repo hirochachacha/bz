@@ -22,8 +22,8 @@ func skillShow(args []string) error {
 
 func skillInstall(args []string) error {
 	f := newFlags("skill install", false)
-	global := f.Bool("global", false, "install into ~/.agents/skills/bugzilla")
-	yes := f.Bool("yes", false, "also create the .claude/skills/bugzilla symlink")
+	global := f.Bool("global", false, "install into ~/.agents/skills/bz")
+	yes := f.Bool("yes", false, "also create the .claude/skills/bz symlink")
 	force := f.BoolP("force", "f", false, "replace an existing install or symlink")
 	f.Parse(args)
 	if err := f.wantArgs(0, 0); err != nil {
@@ -38,7 +38,7 @@ func skillInstall(args []string) error {
 		}
 		root = home
 	}
-	dir := filepath.Join(root, ".agents", "skills", "bugzilla")
+	dir := filepath.Join(root, ".agents", "skills", "bz")
 	file := filepath.Join(dir, "SKILL.md")
 	if _, err := os.Stat(file); err == nil && !*force {
 		return fmt.Errorf("%s exists; pass --force to replace it", file)
@@ -54,7 +54,7 @@ func skillInstall(args []string) error {
 		return nil
 	}
 
-	link := filepath.Join(root, ".claude", "skills", "bugzilla")
+	link := filepath.Join(root, ".claude", "skills", "bz")
 	if _, err := os.Lstat(link); err == nil {
 		if !*force {
 			return fmt.Errorf("%s exists; pass --force to replace it", link)
@@ -67,7 +67,7 @@ func skillInstall(args []string) error {
 		return err
 	}
 	// Relative, so that the link of a project survives a move of it.
-	if err := os.Symlink(filepath.Join("..", "..", ".agents", "skills", "bugzilla"), link); err != nil {
+	if err := os.Symlink(filepath.Join("..", "..", ".agents", "skills", "bz"), link); err != nil {
 		return err
 	}
 	fmt.Println("linked", link)
