@@ -104,6 +104,7 @@ bz bug close -R samba 16303 -r INVALID [-c TEXT] --yes
 bz bug close -R samba 16303 --duplicate-of 16200 --yes
 bz bug reopen -R samba 16303 [--status UNCONFIRMED] [-c TEXT] --yes
 bz bug edit -R samba 16303 -t '...' --version 4.24.6 --add-cc LOGIN [-c TEXT] --yes
+bz bug edit -R samba 16303 --add-see-also https://gitlab.com/.../merge_requests/N --yes
 bz api -R samba -X PUT bug/16303 -f keywords=patch --yes
 ```
 
@@ -116,13 +117,15 @@ CLOSED` where the Bugzilla closes so), and obsoleting hides an attachment.
 `bug reopen` takes REOPENED, else CONFIRMED; where the workflow or the
 user's permissions refuse it (a reporter in Mozilla's Bugzilla), pass
 `--status UNCONFIRMED`. `bug edit` changes the summary (`-t`), product,
-component and version, the CC list and keywords (`--add-cc`,
-`--remove-cc`, `--add-keyword`, `--remove-keyword`) and any other field
-(`--set`), checked as `bug create` checks them; a Bugzilla may refuse a
-reporter some fields, as Mozilla's the severity. `api` does what the
-commands do not, as `gh api` does: fields go with `-f key=value` (strings)
-or `-F key=value` (JSON literals, numbers, `@file`), in the query of a GET
-and the JSON body of other methods, or the body with `--input`.
+component and version, the CC list, keywords and See Also (`--add-cc`,
+`--remove-cc`, `--add-keyword`, `--remove-keyword`, `--add-see-also`,
+`--remove-see-also`; a merge request of the fix goes in See Also) and any
+other field (`--set`), checked as `bug create` checks them; a Bugzilla may
+refuse a reporter some fields, as Mozilla's the severity. `api` does what
+the commands do not, as `gh api` does: fields go with `-f key=value`
+(strings) or `-F key=value` (JSON literals, numbers, `@file`), in the
+query of a GET and the JSON body of other methods, or the body with
+`--input`.
 
 They need the user's API key in `~/.config/bz/<host>` (under
 `$XDG_CONFIG_HOME` if set), as `~/.config/bz/bugzilla.samba.org`. `bz auth

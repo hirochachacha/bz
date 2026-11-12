@@ -636,8 +636,8 @@ func bugReopen(args []string) error {
 }
 
 // bugEdit changes the fields of a bug, as gh issue edit does: the summary,
-// product, component and version by their flags, lists by --add and
-// --remove, any other field by --set.
+// product, component and version by their flags, the lists (CC, keywords,
+// See Also) by --add and --remove, any other field by --set.
 func bugEdit(args []string) error {
 	f := newFlags("bug edit <bug>", true)
 	title := f.StringP("title", "t", "", "the new summary")
@@ -648,6 +648,8 @@ func bugEdit(args []string) error {
 	removeCC := f.StringArray("remove-cc", nil, "a login to remove from the CC list; repeat for more")
 	addKeyword := f.StringArray("add-keyword", nil, "a keyword to add; repeat for more")
 	removeKeyword := f.StringArray("remove-keyword", nil, "a keyword to remove; repeat for more")
+	addSeeAlso := f.StringArray("add-see-also", nil, "a URL to add to See Also, as of a merge request; repeat for more")
+	removeSeeAlso := f.StringArray("remove-see-also", nil, "a URL to remove from See Also; repeat for more")
 	set := f.StringArray("set", nil, "another field, as name=value (severity=minor); repeat a name for a list")
 	comment := f.StringP("comment", "c", "", "a comment to add")
 	yes := yesFlag(f)
@@ -673,7 +675,7 @@ func bugEdit(args []string) error {
 			return fmt.Errorf("bad --set %q: want name=value", v)
 		}
 		switch name {
-		case "summary", "product", "component", "version", "cc", "keywords", "comment":
+		case "summary", "product", "component", "version", "cc", "keywords", "see_also", "comment":
 			return fmt.Errorf("pass %s with its own flag, not --set", name)
 		}
 		values[name] = append(values[name], value)
@@ -688,6 +690,7 @@ func bugEdit(args []string) error {
 	for field, lists := range map[string][2][]string{
 		"cc":       {*addCC, *removeCC},
 		"keywords": {*addKeyword, *removeKeyword},
+		"see_also": {*addSeeAlso, *removeSeeAlso},
 	} {
 		if len(lists[0])+len(lists[1]) > 0 {
 			change[field] = map[string][]string{"add": lists[0], "remove": lists[1]}
@@ -768,7 +771,7 @@ func (s *server) checkEdit(id int, change map[string]any) error {
 	}
 	for _, name := range slices.Sorted(maps.Keys(change)) {
 		switch name {
-		case "summary", "product", "component", "version", "cc", "keywords":
+		case "summary", "product", "component", "version", "cc", "keywords", "see_also":
 			continue
 		}
 		legal, ok, err := s.legalValues(name)
