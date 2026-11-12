@@ -88,10 +88,10 @@ and a blank line gives the flags; pass the rest as the description, as
 
 ## Sending needs the user's approval each time
 
-`bug create`, `comment`, `attach`, `close` and `reopen`, and `api` with a
-method other than GET, publish to a public tracker. On a terminal they
-show what they send and ask; elsewhere they send only with `--yes`. Pass
-`--yes` only after the user approved that bug or text in this
+`bug create`, `comment`, `attach`, `edit`, `close` and `reopen`, and `api`
+with a method other than GET, publish to a public tracker. On a terminal
+they show what they send and ask; elsewhere they send only with `--yes`.
+Pass `--yes` only after the user approved that bug or text in this
 conversation; show them the output of `bug create --dry-run`, or the text,
 first. Reports for a security team are not filed in a public Bugzilla; the
 user reports them by hand.
@@ -103,20 +103,25 @@ bz bug attach -R samba 16303 fix-v2.patch --obsoletes 19329 [-c TEXT] --yes
 bz bug close -R samba 16303 -r INVALID [-c TEXT] --yes
 bz bug close -R samba 16303 --duplicate-of 16200 --yes
 bz bug reopen -R samba 16303 [--status UNCONFIRMED] [-c TEXT] --yes
+bz bug edit -R samba 16303 -t '...' --version 4.24.6 --add-cc LOGIN [-c TEXT] --yes
 bz api -R samba -X PUT bug/16303 -f keywords=patch --yes
 ```
 
-`bug create` prints the bug's URL. If an attachment fails, the bug
-exists: attach the rest with `bug attach`; do not create it again. A
-revised patch goes up with `--obsoletes <attachment id>` of the patch it
-replaces; `bug view` lists the ids, and `bug attach` refuses an id of
-another bug. Bugzilla deletes nothing for a user: `bug close` resolves a
-bug (`--status CLOSED` where the Bugzilla closes so), and obsoleting
-hides an attachment. `bug reopen` takes REOPENED, else CONFIRMED; where
-the workflow or the user's permissions refuse it (a reporter in Mozilla's
-Bugzilla), pass `--status UNCONFIRMED`. `api` does what the commands do
-not, as `gh api` does: fields go with `-f key=value` (strings) or
-`-F key=value` (JSON literals, numbers, `@file`), in the query of a GET
+`bug create` prints the bug's URL. If an attachment fails, the bug exists:
+attach the rest with `bug attach`; do not create it again. A revised patch
+goes up with `--obsoletes <attachment id>` of the patch it replaces; `bug
+view` lists the ids, and `bug attach` refuses an id of another bug.
+Bugzilla deletes nothing for a user: `bug close` resolves a bug (`--status
+CLOSED` where the Bugzilla closes so), and obsoleting hides an attachment.
+`bug reopen` takes REOPENED, else CONFIRMED; where the workflow or the
+user's permissions refuse it (a reporter in Mozilla's Bugzilla), pass
+`--status UNCONFIRMED`. `bug edit` changes the summary (`-t`), product,
+component and version, the CC list and keywords (`--add-cc`,
+`--remove-cc`, `--add-keyword`, `--remove-keyword`) and any other field
+(`--set`), checked as `bug create` checks them; a Bugzilla may refuse a
+reporter some fields, as Mozilla's the severity. `api` does what the
+commands do not, as `gh api` does: fields go with `-f key=value` (strings)
+or `-F key=value` (JSON literals, numbers, `@file`), in the query of a GET
 and the JSON body of other methods, or the body with `--input`.
 
 They need the user's API key in `~/.config/bz/<host>` (under

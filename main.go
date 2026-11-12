@@ -45,6 +45,7 @@ var groups = []group{
 		{"comment", "<bug>", "Add a comment to a bug", bugComment},
 		{"attach", "<bug> <file>...", "Attach files to a bug, obsoleting others", bugAttach},
 		{"close", "<bug>", "Resolve a bug", bugClose},
+		{"edit", "<bug>", "Change the fields of a bug", bugEdit},
 		{"reopen", "<bug>", "Reopen a closed bug", bugReopen},
 	}, nil},
 	{"attachment", "Fetch the attachments of bugs", []command{

@@ -635,3 +635,162 @@ func bugReopen(args []string) error {
 	fmt.Println("Reopened", s.bugURL(id))
 	return nil
 }
+
+// bugEdit changes the fields of a bug, as gh issue edit does: the summary,
+// product, component and version by their flags, lists by --add and
+// --remove, any other field by --set.
+func bugEdit(args []string) error {
+	f := newFlags("bug edit <bug>", true)
+	title := f.StringP("title", "t", "", "the new summary")
+	product := f.String("product", "", "the new product")
+	component := f.String("component", "", "the new component")
+	version := f.String("version", "", "the new version")
+	addCC := f.StringArray("add-cc", nil, "a login to add to the CC list; repeat for more")
+	removeCC := f.StringArray("remove-cc", nil, "a login to remove from the CC list; repeat for more")
+	addKeyword := f.StringArray("add-keyword", nil, "a keyword to add; repeat for more")
+	removeKeyword := f.StringArray("remove-keyword", nil, "a keyword to remove; repeat for more")
+	set := f.StringArray("set", nil, "another field, as name=value (severity=minor); repeat a name for a list")
+	comment := f.StringP("comment", "c", "", "a comment to add")
+	yes := yesFlag(f)
+	f.Parse(args)
+	if err := f.wantArgs(1, 1); err != nil {
+		return err
+	}
+	id, err := bugID(f.Arg(0))
+	if err != nil {
+		return err
+	}
+	change := map[string]any{}
+	for name, v := range map[string]string{"summary": *title, "product": *product,
+		"component": *component, "version": *version} {
+		if v != "" {
+			change[name] = v
+		}
+	}
+	values := map[string][]string{}
+	for _, v := range *set {
+		name, value, ok := strings.Cut(v, "=")
+		if !ok || name == "" {
+			return fmt.Errorf("bad --set %q: want name=value", v)
+		}
+		switch name {
+		case "summary", "product", "component", "version", "cc", "keywords", "comment":
+			return fmt.Errorf("pass %s with its own flag, not --set", name)
+		}
+		values[name] = append(values[name], value)
+	}
+	for name, v := range values {
+		if len(v) == 1 {
+			change[name] = v[0]
+		} else {
+			change[name] = v
+		}
+	}
+	for field, lists := range map[string][2][]string{
+		"cc":       {*addCC, *removeCC},
+		"keywords": {*addKeyword, *removeKeyword},
+	} {
+		if len(lists[0])+len(lists[1]) > 0 {
+			change[field] = map[string][]string{"add": lists[0], "remove": lists[1]}
+		}
+	}
+	if len(change) == 0 && *comment == "" {
+		return errors.New("nothing to change")
+	}
+	s, err := f.serverOf()
+	if err != nil {
+		return err
+	}
+	if err := s.checkEdit(id, change); err != nil {
+		return err
+	}
+
+	var plan strings.Builder
+	fmt.Fprintf(&plan, "edit %s:\n", s.bugURL(id))
+	for _, name := range slices.Sorted(maps.Keys(change)) {
+		fmt.Fprintf(&plan, "%s: %v\n", name, change[name])
+	}
+	if *comment != "" {
+		change["comment"] = map[string]string{"body": *comment}
+		fmt.Fprintf(&plan, "comment: %s\n", *comment)
+	}
+	if err := confirmSend(*yes, plan.String()); err != nil {
+		return err
+	}
+	var result struct{}
+	if err := s.call("PUT", fmt.Sprintf("/bug/%d", id), nil, change, &result); err != nil {
+		return err
+	}
+	fmt.Println("Edited", s.bugURL(id))
+	return nil
+}
+
+// checkEdit checks the component and version of a change against the
+// product it leaves the bug in, and the values of other fields where the
+// Bugzilla lists them.
+func (s *server) checkEdit(id int, change map[string]any) error {
+	var problems []string
+	_, hasComponent := change["component"]
+	_, hasVersion := change["version"]
+	if hasComponent || hasVersion {
+		product, _ := change["product"].(string)
+		if product == "" {
+			var bugs struct {
+				Bugs []struct {
+					Product string `json:"product"`
+				} `json:"bugs"`
+			}
+			err := s.call("GET", fmt.Sprintf("/bug/%d", id),
+				url.Values{"include_fields": {"product"}}, nil, &bugs)
+			if err != nil {
+				return err
+			}
+			if len(bugs.Bugs) == 0 {
+				return fmt.Errorf("no bug %d", id)
+			}
+			product = bugs.Bugs[0].Product
+		}
+		if hasVersion {
+			versions, err := s.productChoices(product, "versions")
+			if err != nil {
+				return err
+			}
+			if v := change["version"].(string); !hasName(activeNames(versions), v) {
+				problems = append(problems, fmt.Sprintf("product %q takes no version %q", product, v))
+			}
+		}
+		if hasComponent {
+			if components, err := s.productChoices(product, "components"); err != nil {
+				fmt.Fprintf(os.Stderr, "bz: component not checked: %v\n", err)
+			} else if c := change["component"].(string); !hasName(activeNames(components), c) {
+				problems = append(problems, fmt.Sprintf("product %q takes no component %q", product, c))
+			}
+		}
+	}
+	for _, name := range slices.Sorted(maps.Keys(change)) {
+		switch name {
+		case "summary", "product", "component", "version", "cc", "keywords":
+			continue
+		}
+		legal, ok, err := s.legalValues(name)
+		if err != nil {
+			return err
+		}
+		if !ok || len(legal) == 0 {
+			continue
+		}
+		values, isList := change[name].([]string)
+		if !isList {
+			values = []string{change[name].(string)}
+		}
+		for _, v := range values {
+			if !hasName(legal, v) {
+				problems = append(problems, fmt.Sprintf("%s takes no value %q", name, v))
+			}
+		}
+	}
+	if len(problems) > 0 {
+		return errors.New(strings.Join(problems, "; "))
+	}
+	return nil
+}
