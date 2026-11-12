@@ -27,33 +27,20 @@ func authLogin(args []string) error {
 	if err != nil {
 		return err
 	}
-	in := bufio.NewReader(os.Stdin)
-	fmt.Fprint(os.Stderr, "Login (email): ")
-	login, err := in.ReadString('\n')
-	if login = strings.TrimSpace(login); login == "" {
-		return fmt.Errorf("no login given: %v", err)
+	page := s.url + "/userprefs.cgi?tab=apikey"
+	if openBrowser(page) {
+		fmt.Fprintf(os.Stderr, "Opened %s in your browser; make an API key there\n", page)
+	} else {
+		fmt.Fprintf(os.Stderr, "Make an API key at %s\n", page)
 	}
-	fmt.Fprintf(os.Stderr, "Make an API key at %s/userprefs.cgi?tab=apikey\n", s.url)
 	fmt.Fprint(os.Stderr, "API key: ")
-	key, err := in.ReadString('\n')
+	key, err := bufio.NewReader(os.Stdin).ReadString('\n')
 	if s.key = strings.TrimSpace(key); s.key == "" {
 		return fmt.Errorf("no API key given: %v", err)
 	}
-	// Bugzilla shows the email of a user only to one logged in, so it
-	// coming back says that the key is valid; not all have /whoami.
-	var users struct {
-		Users []struct {
-			Email string `json:"email"`
-		} `json:"users"`
-	}
-	err = s.call("GET", "/user", url.Values{
-		"names": {login}, "include_fields": {"email"},
-	}, nil, &users)
+	user, err := s.checkKey()
 	if err != nil {
 		return err
-	}
-	if len(users.Users) == 0 || users.Users[0].Email == "" {
-		return fmt.Errorf("the API key does not log in to %s", s.url)
 	}
 	keyFile, err := s.keyFile()
 	if err != nil {
@@ -69,7 +56,7 @@ func authLogin(args []string) error {
 	if err := os.Chmod(keyFile, 0o600); err != nil {
 		return err
 	}
-	fmt.Printf("Logged in to %s; the key is in %s\n", s.url, keyFile)
+	fmt.Printf("Logged in to %s%s; the key is in %s\n", s.url, user, keyFile)
 	if u, err := defaultURL(); err != nil || u != "" {
 		return err
 	}
@@ -131,6 +118,41 @@ func hostURL(host string) string {
 	return "https://" + host
 }
 
+// errInvalidKey is of an API key that does not log in.
+var errInvalidKey = errors.New("the API key is invalid")
+
+// checkKey checks that the key of s logs in, and returns " as <name>"
+// where the Bugzilla says whose it is. /whoami says so; a Bugzilla without
+// it (Samba's) still refuses a search for the bugs of %user% to a key that
+// does not log in.
+func (s *server) checkKey() (string, error) {
+	var user struct {
+		Name string `json:"name"`
+	}
+	err := s.call("GET", "/whoami", nil, nil, &user)
+	if err == nil {
+		return " as " + user.Name, nil
+	}
+	// Code 32614 is of a resource that does not exist.
+	if e, ok := errors.AsType[*apiError](err); !ok || e.code != 32614 {
+		return "", keyError(err)
+	}
+	var result struct{}
+	err = s.call("GET", "/bug", url.Values{
+		"reporter": {"%user%"}, "limit": {"1"}, "include_fields": {"id"},
+	}, nil, &result)
+	return "", keyError(err)
+}
+
+// keyError returns errInvalidKey for the error of a key that does not log
+// in, code 306.
+func keyError(err error) error {
+	if e, ok := errors.AsType[*apiError](err); ok && e.code == 306 {
+		return errInvalidKey
+	}
+	return err
+}
+
 // keyStatus says whether the stored key of the Bugzilla at u logs in.
 func keyStatus(u string) string {
 	s, err := dial(u)
@@ -140,18 +162,11 @@ func keyStatus(u string) string {
 	if s.key, err = s.apiKey(); err != nil {
 		return "no API key"
 	}
-	// A search for the bugs of %user% needs a valid key.
-	var result struct{}
-	err = s.call("GET", "/bug", url.Values{
-		"reporter": {"%user%"}, "limit": {"1"}, "include_fields": {"id"},
-	}, nil, &result)
-	if e, ok := errors.AsType[*apiError](err); ok && e.code == 306 {
-		return "the API key is invalid"
-	}
+	user, err := s.checkKey()
 	if err != nil {
 		return err.Error()
 	}
-	return "logged in"
+	return "logged in" + user
 }
 
 // authLogout forgets the API key of the Bugzilla.

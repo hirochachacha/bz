@@ -125,13 +125,13 @@ or `-F key=value` (JSON literals, numbers, `@file`), in the query of a GET
 and the JSON body of other methods, or the body with `--input`.
 
 They need the user's API key in `~/.config/bz/<host>` (under
-`$XDG_CONFIG_HOME` if set), as `~/.config/bz/bugzilla.samba.org`.
-`bz auth status` says which Bugzillas have a key that logs in. Without
-one, ask the user to run `bz auth login -R <Bugzilla>` (as
-`bz auth login -R samba`) in a terminal of their own: it asks for their
-login, shows where to make a key, reads the key, checks it and stores it
-(mode 600). Do not run `auth login` yourself, and never print, copy or
-ask for the key in the chat.
+`$XDG_CONFIG_HOME` if set), as `~/.config/bz/bugzilla.samba.org`. `bz auth
+status` says which Bugzillas have a key that logs in. Without one, ask the
+user to run `bz auth login -R <Bugzilla>` (as `bz auth login -R samba`) in
+a terminal of their own: it opens the page to make a key in their browser
+where it can, else shows its URL, reads the key, checks it and stores it
+(mode 600). Do not run `auth login` yourself, and never print, copy or ask
+for the key in the chat.
 
 ## After filing
 
