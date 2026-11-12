@@ -23,9 +23,12 @@ type command struct {
 	run              func(args []string) error
 }
 
+// A group is a group of commands, or a command of its own where run is
+// set (bz api).
 type group struct {
 	name, help string
 	commands   []command
+	run        func(args []string) error
 }
 
 var groups = []group{
@@ -33,7 +36,7 @@ var groups = []group{
 		{"login", "", "Store an API key, read from the terminal", authLogin},
 		{"status", "", "Check the stored API keys", authStatus},
 		{"logout", "", "Forget the API key of a Bugzilla", authLogout},
-	}},
+	}, nil},
 	{"bug", "Search, read and file bugs", []command{
 		{"list", "", "List bugs by fields or words", bugList},
 		{"status", "", "List your open bugs: reported, assigned, CC'd", bugStatus},
@@ -42,25 +45,30 @@ var groups = []group{
 		{"comment", "<bug>", "Add a comment to a bug", bugComment},
 		{"attach", "<bug> <file>...", "Attach files to a bug, obsoleting others", bugAttach},
 		{"close", "<bug>", "Resolve a bug", bugClose},
-	}},
+		{"reopen", "<bug>", "Reopen a closed bug", bugReopen},
+	}, nil},
+	{"attachment", "Fetch the attachments of bugs", []command{
+		{"download", "<attachment>", "Save an attachment to a file", attachmentDownload},
+	}, nil},
 	{"product", "Show the products of a Bugzilla", []command{
 		{"list", "", "List the products that take new bugs", productList},
 		{"view", "<product>", "Show the components and versions of a product", productView},
-	}},
+	}, nil},
 	{"field", "Show the fields of bugs", []command{
 		{"view", "<field>", "Show the values that a field takes", fieldView},
-	}},
+	}, nil},
 	{"server", "Choose the default Bugzilla", []command{
 		{"set-default", "[<name> | <host> | <URL>]", "Set or view the default Bugzilla", serverSetDefault},
-	}},
+	}, nil},
 	{"cache", "Manage the cache of the choices of fields", []command{
 		{"clear", "", "Drop the cache of a Bugzilla", cacheClear},
 		{"dir", "", "Print the directory of the cache of a Bugzilla", cacheDirectory},
-	}},
+	}, nil},
 	{"skill", "Print or install the skill for agents", []command{
 		{"show", "", "Print the skill", skillShow},
 		{"install", "", "Install the skill into ./.agents/skills/bugzilla", skillInstall},
-	}},
+	}, nil},
+	{"api", "Make a request of the REST API", nil, api},
 }
 
 // flags are the flags of a command, with --server where it talks to a
@@ -115,8 +123,11 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "Search, read and file bugs in a Bugzilla.\n\nUsage: bz <group> <command> [flags]")
 	for _, g := range groups {
 		fmt.Fprintf(os.Stderr, "\n%s: %s\n", g.name, g.help)
+		if g.run != nil {
+			fmt.Fprintf(os.Stderr, "  %-24s %s\n", "bz "+g.name, g.help)
+		}
 		for _, c := range g.commands {
-			fmt.Fprintf(os.Stderr, "  %-22s %s\n", "bz "+g.name+" "+c.name, c.help)
+			fmt.Fprintf(os.Stderr, "  %-24s %s\n", "bz "+g.name+" "+c.name, c.help)
 		}
 	}
 	fmt.Fprintln(os.Stderr, "\nRun bz <group> <command> --help for the flags of a command.")
@@ -138,6 +149,13 @@ func main() {
 	for _, g := range groups {
 		if g.name != args[0] {
 			continue
+		}
+		if g.run != nil {
+			if err := g.run(args[1:]); err != nil {
+				fmt.Fprintln(os.Stderr, "bz:", err)
+				os.Exit(1)
+			}
+			return
 		}
 		if len(args) > 1 {
 			for _, c := range g.commands {

@@ -38,6 +38,8 @@ bz bug view -R samba 16303 [--comments]          # fields, attachments, comments
 bz product list -R samba                         # products that take new bugs
 bz product view -R samba 'Samba 4.1 and newer'   # components and versions
 bz field view -R samba severity                  # the values a field takes
+bz attachment download -R samba 19329 [-O file]  # save under its name; --clobber
+bz api -R samba bug/16303 -f include_fields=id,status   # any GET of the REST API
 ```
 
 `bug list` takes `-A`/`--author` (the reporter), `-a`/`--assignee`
@@ -86,12 +88,13 @@ and a blank line gives the flags; pass the rest as the description, as
 
 ## Sending needs the user's approval each time
 
-`bug create`, `comment`, `attach` and `close` publish to a public
-tracker. On a terminal they show what they send and ask; elsewhere they
-send only with `--yes`. Pass `--yes` only after the user approved that
-bug or text in this conversation; show them the output of `bug create
---dry-run`, or the text, first. Reports for a security team are not filed
-in a public Bugzilla; the user reports them by hand.
+`bug create`, `comment`, `attach`, `close` and `reopen`, and `api` with a
+method other than GET, publish to a public tracker. On a terminal they
+show what they send and ask; elsewhere they send only with `--yes`. Pass
+`--yes` only after the user approved that bug or text in this
+conversation; show them the output of `bug create --dry-run`, or the text,
+first. Reports for a security team are not filed in a public Bugzilla; the
+user reports them by hand.
 
 ```sh
 bz bug create -R samba --yes ...
@@ -99,6 +102,8 @@ bz bug comment -R samba 16303 -F reply.txt --yes
 bz bug attach -R samba 16303 fix-v2.patch --obsoletes 19329 [-c TEXT] --yes
 bz bug close -R samba 16303 -r INVALID [-c TEXT] --yes
 bz bug close -R samba 16303 --duplicate-of 16200 --yes
+bz bug reopen -R samba 16303 [--status UNCONFIRMED] [-c TEXT] --yes
+bz api -R samba -X PUT bug/16303 -f keywords=patch --yes
 ```
 
 `bug create` prints the bug's URL. If an attachment fails, the bug
@@ -107,7 +112,12 @@ revised patch goes up with `--obsoletes <attachment id>` of the patch it
 replaces; `bug view` lists the ids, and `bug attach` refuses an id of
 another bug. Bugzilla deletes nothing for a user: `bug close` resolves a
 bug (`--status CLOSED` where the Bugzilla closes so), and obsoleting
-hides an attachment.
+hides an attachment. `bug reopen` takes REOPENED, else CONFIRMED; where
+the workflow or the user's permissions refuse it (a reporter in Mozilla's
+Bugzilla), pass `--status UNCONFIRMED`. `api` does what the commands do
+not, as `gh api` does: fields go with `-f key=value` (strings) or
+`-F key=value` (JSON literals, numbers, `@file`), in the query of a GET
+and the JSON body of other methods, or the body with `--input`.
 
 They need the user's API key in `~/.config/bz/<host>` (under
 `$XDG_CONFIG_HOME` if set), as `~/.config/bz/bugzilla.samba.org`.

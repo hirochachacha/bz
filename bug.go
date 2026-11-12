@@ -205,8 +205,8 @@ func bugView(args []string) error {
 	b := bugs.Bugs[0]
 	fmt.Printf("%s\n%s\n", b.Summary, s.bugURL(id))
 	fmt.Printf("%s / %s / %s\n", b.Product, b.Component, b.Version)
-	fmt.Printf("%s %s; reported by %s, assigned to %s\n",
-		b.Status, b.Resolution, b.Creator, b.AssignedTo)
+	fmt.Printf("%s; reported by %s, assigned to %s\n",
+		strings.TrimSpace(b.Status+" "+b.Resolution), b.Creator, b.AssignedTo)
 
 	var attachments struct {
 		Bugs map[string][]struct {
@@ -570,5 +570,68 @@ func bugClose(args []string) error {
 		return err
 	}
 	fmt.Println("Closed", s.bugURL(id))
+	return nil
+}
+
+// reopenStatuses are the statuses that reopen a bug, the first that the
+// Bugzilla takes being the default: REOPENED of older workflows,
+// CONFIRMED of that of Bugzilla 5.
+var reopenStatuses = []string{"REOPENED", "CONFIRMED"}
+
+func bugReopen(args []string) error {
+	f := newFlags("bug reopen <bug>", true)
+	status := f.String("status", "", "the open status to reopen to (default: REOPENED, else CONFIRMED)")
+	comment := f.StringP("comment", "c", "", "a comment to add")
+	yes := yesFlag(f)
+	f.Parse(args)
+	if err := f.wantArgs(1, 1); err != nil {
+		return err
+	}
+	id, err := bugID(f.Arg(0))
+	if err != nil {
+		return err
+	}
+	s, err := f.serverOf()
+	if err != nil {
+		return err
+	}
+	legal, ok, err := s.legalValues("status")
+	if err != nil {
+		return err
+	}
+	if *status == "" {
+		for _, st := range reopenStatuses {
+			if !ok || hasName(legal, st) {
+				*status = st
+				break
+			}
+		}
+		if *status == "" {
+			return errors.New("this Bugzilla has no REOPENED or CONFIRMED; pass --status (bz field view status)")
+		}
+	} else if ok && !hasName(legal, *status) {
+		return fmt.Errorf("status takes no value %q", *status)
+	}
+	// Bugzilla clears the resolution of a bug that it opens.
+	change := map[string]any{"status": *status}
+	plan := fmt.Sprintf("reopen %s: %s\n", s.bugURL(id), *status)
+	if *comment != "" {
+		change["comment"] = map[string]string{"body": *comment}
+		plan += "comment: " + *comment + "\n"
+	}
+	if err := confirmSend(*yes, plan); err != nil {
+		return err
+	}
+	var result struct{}
+	err = s.call("PUT", fmt.Sprintf("/bug/%d", id), nil, change, &result)
+	// Code 123 is of a change of status that the workflow, or the user's
+	// permissions, do not allow, as REOPENED for a reporter in Mozilla's.
+	if e, ok := errors.AsType[*apiError](err); ok && e.code == 123 {
+		return fmt.Errorf("%w; try another --status, as UNCONFIRMED (bz field view status)", err)
+	}
+	if err != nil {
+		return err
+	}
+	fmt.Println("Reopened", s.bugURL(id))
 	return nil
 }
