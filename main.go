@@ -95,11 +95,26 @@ func newFlags(use string, withServer bool) *flags {
 
 // serverOf returns the Bugzilla of the flags.
 func (f *flags) serverOf() (*server, error) {
-	u, err := selectedURL(*f.server)
+	u, err := f.urlOf()
 	if err != nil {
 		return nil, err
 	}
 	return dial(u)
+}
+
+// urlOf returns the URL of the Bugzilla of the flags, and names it on
+// standard error first, so that the user sees which Bugzilla a command
+// acts on, and standard output keeps only what the command prints.
+func (f *flags) urlOf() (string, error) {
+	u, err := selectedURL(*f.server)
+	if err == nil {
+		u, err = bugzillaURL(u)
+	}
+	if err != nil {
+		return "", err
+	}
+	fmt.Fprintln(os.Stderr, "Bugzilla:", u)
+	return u, nil
 }
 
 // wantArgs checks that the arguments are between min and max in number, a

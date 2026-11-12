@@ -25,8 +25,8 @@ A command uses the Bugzilla of `-R`/`--server`, else the default that
 or the name of a well-known one: apache, freebsd, gcc, gentoo, kde,
 kernel, libreoffice, mozilla, openssh, opensuse, redhat, samba,
 sourceware, suse, webkit. Pass `-R` rather than changing the default,
-which other sessions share. Some, as apache, ask for a login even to
-search.
+which other sessions share. Each command names its Bugzilla first, on
+standard error. Some, as apache, ask for a login even to search.
 
 ## Reading needs no key
 

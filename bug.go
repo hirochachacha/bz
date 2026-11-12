@@ -374,7 +374,6 @@ func bugCreate(args []string) error {
 		return err
 	}
 	var plan strings.Builder
-	fmt.Fprintln(&plan, "bugzilla:", s.url)
 	for _, name := range slices.Sorted(maps.Keys(bug)) {
 		if name != "description" {
 			fmt.Fprintf(&plan, "%s: %v\n", name, bug[name])

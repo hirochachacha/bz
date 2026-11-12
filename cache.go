@@ -86,10 +86,7 @@ func (s *server) cacheFile(path string, params url.Values) (string, error) {
 // cacheDirOf returns the URL of the Bugzilla of the flags and the
 // directory of its cache.
 func (f *flags) cacheDirOf() (string, string, error) {
-	u, err := selectedURL(*f.server)
-	if err == nil {
-		u, err = bugzillaURL(u)
-	}
+	u, err := f.urlOf()
 	if err != nil {
 		return "", "", err
 	}

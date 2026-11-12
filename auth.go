@@ -161,10 +161,7 @@ func authLogout(args []string) error {
 	if err := f.wantArgs(0, 0); err != nil {
 		return err
 	}
-	u, err := selectedURL(*f.server)
-	if err == nil {
-		u, err = bugzillaURL(u)
-	}
+	u, err := f.urlOf()
 	if err != nil {
 		return err
 	}
