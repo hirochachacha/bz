@@ -9,9 +9,7 @@ with commands in the manner of [gh](https://cli.github.com/):
 It needs Go 1.27 or later.
 
 ```sh
-git clone https://github.com/hirochachacha/bz
-cd bz
-go install .
+go install github.com/hirochachacha/bz@latest
 ```
 
 ## Choosing the Bugzilla

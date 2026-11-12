@@ -1,4 +1,4 @@
-module bz
+module github.com/hirochachacha/bz
 
 go 1.27
 
