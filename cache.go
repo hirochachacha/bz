@@ -83,35 +83,49 @@ func (s *server) cacheFile(path string, params url.Values) (string, error) {
 	return filepath.Join(dir, hex.EncodeToString(sum[:])+".json"), nil
 }
 
-const cacheUsage = `usage: bz cache clear
-       bz cache dir
-
-  clear  drop the cache of the Bugzilla, so that the next commands
-         fetch the choices of fields and its REST API again
-  dir    print the directory of the cache of the Bugzilla`
-
-func cmdCache(args []string) error {
-	if len(args) != 1 || args[0] != "clear" && args[0] != "dir" {
-		return errors.New(cacheUsage)
-	}
-	u, err := selectedURL()
+// cacheDirOf returns the URL of the Bugzilla of the flags and the
+// directory of its cache.
+func (f *flags) cacheDirOf() (string, string, error) {
+	u, err := selectedURL(*f.server)
 	if err == nil {
 		u, err = bugzillaURL(u)
 	}
 	if err != nil {
-		return err
+		return "", "", err
 	}
 	dir, err := cacheDir(u)
-	if err != nil {
+	return u, dir, err
+}
+
+// cacheClear drops the cache of the Bugzilla, so that the next commands
+// fetch the choices of fields and its REST API again.
+func cacheClear(args []string) error {
+	f := newFlags("cache clear", true)
+	f.Parse(args)
+	if err := f.wantArgs(0, 0); err != nil {
 		return err
 	}
-	if args[0] == "dir" {
-		fmt.Println(dir)
-		return nil
+	u, dir, err := f.cacheDirOf()
+	if err != nil {
+		return err
 	}
 	if err := os.RemoveAll(dir); err != nil {
 		return err
 	}
-	fmt.Println("dropped the cache of", u)
+	fmt.Println("Dropped the cache of", u)
+	return nil
+}
+
+func cacheDirectory(args []string) error {
+	f := newFlags("cache dir", true)
+	f.Parse(args)
+	if err := f.wantArgs(0, 0); err != nil {
+		return err
+	}
+	_, dir, err := f.cacheDirOf()
+	if err != nil {
+		return err
+	}
+	fmt.Println(dir)
 	return nil
 }

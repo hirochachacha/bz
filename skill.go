@@ -2,8 +2,6 @@ package main
 
 import (
 	_ "embed"
-	"errors"
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,34 +10,24 @@ import (
 //go:embed SKILL.md
 var skillText []byte
 
-const skillUsage = `usage: bz skill show
-       bz skill install [-global] [-yes] [-f]
-
-  show      print the skill
-  install   install the skill into ./.agents/skills/bugzilla`
-
-func cmdSkill(args []string) error {
-	if len(args) == 0 {
-		return errors.New(skillUsage)
-	}
-	switch args[0] {
-	case "show":
-		_, err := os.Stdout.Write(skillText)
+func skillShow(args []string) error {
+	f := newFlags("skill show", false)
+	f.Parse(args)
+	if err := f.wantArgs(0, 0); err != nil {
 		return err
-	case "install":
-		return installSkill(args[1:])
 	}
-	return errors.New(skillUsage)
+	_, err := os.Stdout.Write(skillText)
+	return err
 }
 
-func installSkill(args []string) error {
-	fs := flag.NewFlagSet("skill install", flag.ExitOnError)
-	global := fs.Bool("global", false, "install into ~/.agents/skills/bugzilla")
-	yes := fs.Bool("yes", false, "also create the .claude/skills/bugzilla symlink")
-	force := fs.Bool("f", false, "replace an existing install or symlink")
-	fs.Parse(args)
-	if fs.NArg() > 0 {
-		return errors.New(skillUsage)
+func skillInstall(args []string) error {
+	f := newFlags("skill install", false)
+	global := f.Bool("global", false, "install into ~/.agents/skills/bugzilla")
+	yes := f.Bool("yes", false, "also create the .claude/skills/bugzilla symlink")
+	force := f.BoolP("force", "f", false, "replace an existing install or symlink")
+	f.Parse(args)
+	if err := f.wantArgs(0, 0); err != nil {
+		return err
 	}
 
 	root := "."
@@ -53,7 +41,7 @@ func installSkill(args []string) error {
 	dir := filepath.Join(root, ".agents", "skills", "bugzilla")
 	file := filepath.Join(dir, "SKILL.md")
 	if _, err := os.Stat(file); err == nil && !*force {
-		return fmt.Errorf("%s exists; pass -f to replace it", file)
+		return fmt.Errorf("%s exists; pass --force to replace it", file)
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
@@ -69,7 +57,7 @@ func installSkill(args []string) error {
 	link := filepath.Join(root, ".claude", "skills", "bugzilla")
 	if _, err := os.Lstat(link); err == nil {
 		if !*force {
-			return fmt.Errorf("%s exists; pass -f to replace it", link)
+			return fmt.Errorf("%s exists; pass --force to replace it", link)
 		}
 		if err := os.RemoveAll(link); err != nil {
 			return err

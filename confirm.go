@@ -11,7 +11,7 @@ import (
 
 // confirmSend asks before sending what summary shows to a public tracker:
 // on a terminal it shows the summary and asks; elsewhere, as for an agent,
-// it sends only with -yes, which says that the user has seen and approved
+// it sends only with --yes, which says that the user has seen and approved
 // it.
 func confirmSend(yes bool, summary string) error {
 	if yes {
@@ -19,7 +19,7 @@ func confirmSend(yes bool, summary string) error {
 	}
 	fi, err := os.Stdin.Stat()
 	if err != nil || fi.Mode()&os.ModeCharDevice == 0 {
-		return errors.New("not sent: no terminal to confirm on; pass -yes once the user approved it")
+		return errors.New("not sent: no terminal to confirm on; pass --yes once the user approved it")
 	}
 	fmt.Fprint(os.Stderr, summary)
 	fmt.Fprint(os.Stderr, "Send? [y/N] ")
